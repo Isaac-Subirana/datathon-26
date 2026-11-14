@@ -4,8 +4,6 @@ Plantilla oficial de l'agent de control per al repte de la bateria de UPC Sosten
 Datathon 2026.
 """
 
-# import joblib  # Descomenteu si utilitzeu models serialitzats (.pkl)
-
 class BatteryAgent:
     def __init__(self):
         """Inicialització de l'agent.
@@ -13,13 +11,15 @@ class BatteryAgent:
         Permet carregar models predictius o definir llindars d'operació.
         """
         # Paràmetres d'operació de la política de referència
-        self.llindar_preu_carrega = 0.08      # €/kWh
-        self.llindar_preu_descarrega = 0.16   # €/kWh
-        self.llindar_co2_xarxa =              # kg CO2/kWh
+        self.llindar_preu_carrega = [0.08]      # €/kWh
+        self.llindar_preu_descarrega = [0.16]   # €/kWh
+        self.llindar_co2_xarxa = [0.0]          # kg CO2/kWh
         self.potencia_nominal_kw = 500.0      # Potència màxima de l'inversor (kW)
 
-        # Memòria històrica d'hores passades (permet consultar el passat dins de la simulació):
-        # self.historial = []
+        self.hores_vall = [list(range(0, 5)), list(range[])]       # llista de hores vall per cada mes
+        self.hores_punta = [list(range(0,5))]       # llista de hores punta per cada mes
+        
+        self.historial = []
 
     def act(self, obs: dict) -> float:
         """Determina la consigna de potència activa de la bateria per a l'hora actual.
@@ -46,45 +46,43 @@ class BatteryAgent:
             = 0  -> Bateria en mode d'espera (0.0 kW).
         """
         hora = obs["hour"]
-        mes = extreu_mes(obs[timestamp])
+        mes = extreu_mes(obs[timestamp]) - 1 # perquè volem l'índex de la llista
         preu = obs["preu_actual"]
-        soc = obs["soc_pct"]
-        soc_percentatge = soc * 100
         co2 = obs["co2_actual"]
-
-        # Política heurística de referència basada en regles temporals:
+        soc = obs["soc_pct"]
+        soc_kwh = obs["soc_kwh"]
+        soc_percentatge = soc * 100
+        
         consigna = 0.0
-        # 1. Període vall nocturn (01:00 a 06:00): Càrrega en hores de baixa emissió i baix cost
-        if 1 <= hora <= 6 and preu < self.llindar_preu_carrega and soc < 0.85:
-            consigna = 350.0
+        
+        
+        # canvia la consigna segons certes condicions
+        if co2 < self.llindar_co2[mes] or (preu < self.llindar_preu_carrega[mes] and hora in self.hores_vall[mes]):
+            
 
-        # 2. Període solar central (11:00 a 15:00): Càrrega d'aprofitament amb preus moderats
-        elif 11 <= hora <= 15 and preu < 0.10 and soc < 0.95:
-            consigna = 250.0
+        return assegura_resultat(consigna, soc_kwh, 2000.0, 500.0, -500.0)
 
-        # 3. Període punta vespertí (18:00 a 22:00): Descàrrega per cobrir la demanda màxima del campus
-        elif 18 <= hora <= 22 and (preu > self.llindar_preu_descarrega or co2 > 0.10) and soc > 0.15:
-            consigna = -450.0
+    def extreu_mes(timestamp: str) -> int:
+        """Donada una timestamp en format YYYY-MM-DD hh:mm:ss, retorna el mes expressat per el timestamp."""
+        timestamp_en_llista = timestamp.split("-")
+        return int(timestamp_en_llista[1])
 
-        # Clamping de seguretat física per evitar infraccions de retallada (clipping):
-        # Capacitat màxima: 2.000 kWh, Rendiment: sqrt(0.90) ~= 0.9487
-        soc_kwh = float(obs["soc_kwh"])
-        rendiment_eta = 0.9487
-        max_carrega = min(self.potencia_nominal_kw, (2000.0 - soc_kwh) / rendiment_eta)
-        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * rendiment_eta)
+    def assegura_resultat(consigna: float, soc_kwh:float, soc_kwh_max: float, pot_màx: float, pot_mín: float) -> float:
+        """Donada una possible operació hi opera un safety check, asegurant-se que no es restin punts per violació dels límits o clipping."""
+        from math import sqrt
 
-        sortida = float(max(-max_descarrega, min(max_carrega, consigna)))
+        # Clamping de seguretat física per evitar infraccions de retallada (clipping): [part de l'agent original]
+        rendiment = round(sqrt(90), 10)
+        max_carrega = min(self.potencia_nominal_kw, (soc_kwh_max - soc_kwh) / rendiment)
+        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * rendiment)
+
+        consigna = float(max(-max_descarrega, min(max_carrega, consigna)))
 
         # Considerarem que el valor de sortida és 'sortida'. 
         # Safety check: ens assegurem que no es restin punts per violació dels límits.
-        if sortida > 500.0:
-            return 500.0
-        elif sortida < -500.0:
-            return -500.0
+        if consigna > pot_màx:
+            return pot_màx
+        elif consigna < pot_mín:
+            return pot_mín
         else:
-            return sortida
-
-
-    def extreu_mes(timestamp: str) -> int:
-        timestamp_en_llista = timestamp.split("-")
-        return timestamp_en_llista[1]
+            return consigna
