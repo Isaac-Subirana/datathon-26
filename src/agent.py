@@ -11,9 +11,39 @@ class BatteryAgent:
         Permet carregar models predictius o definir llindars d'operació.
         """
         # Paràmetres d'operació de la política de referència
-        self.llindar_preu_carrega = [0.08]      # €/kWh
-        self.llindar_preu_descarrega = [0.16]   # €/kWh
-        self.llindar_co2_xarxa = [0.0]          # kg CO2/kWh
+        self.preu_carrega: list[float] = [  # €/kWh
+            0.1464,
+            0.1136,
+            0.1425,
+            0.1229,
+            0.1198,
+            0.1270,
+            0.1599,
+            0.1653,
+            0.1331,
+            0.1454,
+            0.1333,
+            0.1467
+        ]     
+        self.co2_xarxa: list[float] = [  # kg CO2/kWh
+            0.08763,
+            0.05093,
+            0.06796,          
+            0.06840,
+            0.07592,
+            0.07476,
+            0.09645,
+            0.10407,
+            0.09517,
+            0.11387,
+            0.08897,
+            0.10278
+        ]               
+
+        self.llindar_preu_carrega: list[float] = [c / 2 for c in self.preu_carrega]
+        self.llindar_preu_descarrega: list[float] = [c * 2 for c in self.preu_carrega]
+        self.llindar_co2_xarxa: list[float] = [c - 0.05 for c in self.co2_xarxa]
+
         self.potencia_nominal_kw = 500.0        # Potència màxima de l'inversor (kW)
 
         self.hores_vall = [                         # llista de hores vall del preu per cada mes
@@ -84,7 +114,14 @@ class BatteryAgent:
         
         
         # canvia la consigna segons certes condicions
-        if co2 < self.llindar_co2[mes] or (preu < self.llindar_preu_carrega[mes] and hora in self.hores_vall[mes]):
+        if co2 < self.llindar_co2_xarxa[mes] or preu < self.llindar_preu_carrega[mes]:
+            # si la electricitat consumida és prou verda o el preu és molt barat, carreguem la bateria
+            return 300 #algo positiu (carreguem)
+
+        elif co2 > self.llindar_co2_xarxa[mes] or preu > self.llindar_preu_descarrega[mes]: 
+            # si la electricitat consumida contamina "molt" o el preu està pels núvols descarreguem la bateria
+            return -300
+        # si la electricitat consumida no és cap de les dues coses, no fem res
             
 
         return assegura_resultat(consigna, soc_kwh, 2000.0, 500.0, -500.0)
