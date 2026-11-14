@@ -5,7 +5,7 @@ Datathon 2026.
 """
 
 class BatteryAgent:
-    def __init__(self):
+    def __init__(self) -> None:
         """Inicialització de l'agent.
         S'executa una sola vegada a l'inici del període d'avaluació.
         Permet carregar models predictius o definir llindars d'operació.
@@ -48,37 +48,39 @@ class BatteryAgent:
 
         self.hores_vall = [                         # llista de hores vall del preu per cada mes
             list(range(1, 6 + 1)), # gener
-            list(range(0, 2 + 1)).extend(list(range(4, 6 + 1))), # febrer
-            list(range(2, 4 + 1)).extend(list(range(14, 16 + 1))), # març
-            [4, 9].extend(list(range(14, 17 + 1))),                # abril
-            [9].extend(list(range(13, 17 + 1))),   # maig
-            [9].extend(list(range(13, 17 + 1))),   # juny
-            [9].extend(list(range(13, 17 + 1))),   # juliol
+            list(range(0, 2 + 1)) + list(range(4, 6 + 1)), # febrer
+            list(range(2, 4 + 1)) + list(range(14, 16 + 1)), # març
+            [4, 9] + list(range(14, 17 + 1)),                # abril
+            [9] + list(range(13, 17 + 1)),   # maig
+            [9] + list(range(13, 17 + 1)),   # juny
+            [9] + list(range(13, 17 + 1)),   # juliol
             list(range(11, 16 + 1)),   # agost
             list(range(12, 17 + 1)), #setembre
-            list(range(3, 4 + 1)).extend(list(range(14, 17 + 1))), # octubre
-            list(range(2, 5 + 1)).extend(list(range(14, 15 + 1))), # novembre
-            list(range(1, 5 + 1)).extend([14]) # desembre
+            list(range(3, 4 + 1)) + list(range(14, 17 + 1)), # octubre
+            list(range(2, 5 + 1)) + list(range(14, 15 + 1)), # novembre
+            list(range(1, 5 + 1)) + [14] # desembre
             ]       
 
         self.hores_punta = [                         # llista de hores punta del preu per cada mes
-            list(range(10, 11 + 1)).extend(list(range(18, 21 + 1))), # gener
-            [10, 13].extend(list(range(18, 21 + 1))), # febrer
+            list(range(10, 11 + 1)) + list(range(18, 21 + 1)), # gener
+            [10, 13] + list(range(18, 21 + 1)), # febrer
             list(range(18, 23 + 1)), # març
-            [8].extend(list(range(19, 23 + 1))),    # abril
-            [7].extend(list(range(19, 23 + 1))),   # maig
-            [7].extend(list(range(19, 23 + 1))),   # juny
-            [7].extend(list(range(19, 23 + 1))),   # juliol
-            [7].extend(list(range(19, 23 + 1))),   # agost
-            [8].extend(list(range(19, 23 + 1))),   # setembre
-            [8, 10].extend(list(range(18, 21 + 1))),   # octubre
-            [8].extend(list(range(18, 22 + 1))), # novembre
-            list(range(10, 11 + 1)).extend(list(range([18, 21 + 1]))) # desembre
+            [8] + list(range(19, 23 + 1)),    # abril
+            [7] + list(range(19, 23 + 1)),   # maig
+            [7] + list(range(19, 23 + 1)),   # juny
+            [7] + list(range(19, 23 + 1)),   # juliol
+            [7] + list(range(19, 23 + 1)),   # agost
+            [8] + list(range(19, 23 + 1)),   # setembre
+            [8, 10] + list(range(18, 21 + 1)),   # octubre
+            [8] + list(range(18, 22 + 1)), # novembre
+            [10, 11] + list(range(18, 21 + 1)) # desembre
             ]
 
-        self.historial = []
+        #self.historial = []
 
     def act(self, obs: dict) -> float:
+        import pandas as pd
+        from math import sqrt
         """Determina la consigna de potència activa de la bateria per a l'hora actual.
 
         Paràmetres:
@@ -103,11 +105,15 @@ class BatteryAgent:
             = 0  -> Bateria en mode d'espera (0.0 kW).
         """
         hora = obs["hour"]
-        mes = extreu_mes(obs[timestamp]) - 1 # perquè volem l'índex de la llista
+        #mes = self.extreu_mes(obs[timestamp]) - 1 # perquè volem l'índex de la llista
+        #timestamp_en_llista = obs["timestamp"].split("-")
+        #mes = int(timestamp_en_llista[1])
+        mes = pd.to_datetime(obs["timestamp"]).month - 1
         preu = obs["preu_actual"]
         co2 = obs["co2_actual"]
         soc = obs["soc_pct"]
         soc_kwh = obs["soc_kwh"]
+        soc_kwh_max = 2000
         soc_percentatge = soc * 100
         
         consigna = 0.0
@@ -116,23 +122,43 @@ class BatteryAgent:
         # canvia la consigna segons certes condicions
         if co2 < self.llindar_co2_xarxa[mes] or preu < self.llindar_preu_carrega[mes]:
             # si la electricitat consumida és prou verda o el preu és molt barat, carreguem la bateria
-            return 300 #algo positiu (carreguem)
+            consigna = 300 #algo positiu (carreguem)
 
         elif co2 > self.llindar_co2_xarxa[mes] or preu > self.llindar_preu_descarrega[mes]: 
             # si la electricitat consumida contamina "molt" o el preu està pels núvols descarreguem la bateria
-            return -300
+            consigna = -300
         # si la electricitat consumida no és cap de les dues coses, no fem res
             
 
-        return assegura_resultat(consigna, soc_kwh, 2000.0, 500.0, -500.0)
+        #return assegura_resultat(consigna, soc_kwh, 2000.0, 500.0, -500.0)
 
-    def extreu_mes(timestamp: str) -> int:
-        """Donada una timestamp en format YYYY-MM-DD hh:mm:ss, retorna el mes expressat per el timestamp."""
+        #from math import sqrt
+
+        # Clamping de seguretat física per evitar infraccions de retallada (clipping): [part de l'agent original]
+        rendiment = round(sqrt(0.90), 10)
+        max_carrega = min(self.potencia_nominal_kw, (soc_kwh_max - soc_kwh) / rendiment)
+        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * rendiment)
+
+        consigna = float(max(-max_descarrega, min(max_carrega, consigna)))
+
+        # Considerarem que el valor de sortida és 'sortida'. 
+        # Safety check: ens assegurem que no es restin punts per violació dels límits.
+        if consigna > 500:
+            return 500
+        elif consigna < -500:
+            return -500
+        else:
+            return consigna
+
+    """
+    def extreu_mes(self, timestamp: str) -> int:
+        Donada una timestamp en format YYYY-MM-DD hh:mm:ss, retorna el mes expressat per el timestamp.
         timestamp_en_llista = timestamp.split("-")
         return int(timestamp_en_llista[1])
-
-    def assegura_resultat(consigna: float, soc_kwh:float, soc_kwh_max: float, pot_màx: float, pot_mín: float) -> float:
-        """Donada una possible operació hi opera un safety check, asegurant-se que no es restin punts per violació dels límits o clipping."""
+    """
+    """
+    def assegura_resultat(self, consigna: float, soc_kwh:float, soc_kwh_max: float, pot_màx: float, pot_mín: float) -> float:
+        Donada una possible operació hi opera un safety check, asegurant-se que no es restin punts per violació dels límits o clipping.
         from math import sqrt
 
         # Clamping de seguretat física per evitar infraccions de retallada (clipping): [part de l'agent original]
@@ -150,3 +176,4 @@ class BatteryAgent:
             return pot_mín
         else:
             return consigna
+    """
