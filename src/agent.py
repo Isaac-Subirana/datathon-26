@@ -14,11 +14,38 @@ class BatteryAgent:
         self.llindar_preu_carrega = [0.08]      # €/kWh
         self.llindar_preu_descarrega = [0.16]   # €/kWh
         self.llindar_co2_xarxa = [0.0]          # kg CO2/kWh
-        self.potencia_nominal_kw = 500.0      # Potència màxima de l'inversor (kW)
+        self.potencia_nominal_kw = 500.0        # Potència màxima de l'inversor (kW)
 
-        self.hores_vall = [list(range(0, 5)), list(range[])]       # llista de hores vall per cada mes
-        self.hores_punta = [list(range(0,5))]       # llista de hores punta per cada mes
-        
+        self.hores_vall = [                         # llista de hores vall del preu per cada mes
+            list(range(1, 6 + 1)), # gener
+            list(range(0, 2 + 1)).extend(list(range(4, 6 + 1))), # febrer
+            list(range(2, 4 + 1)).extend(list(range(14, 16 + 1))), # març
+            [4, 9].extend(list(range(14, 17 + 1))),                # abril
+            [9].extend(list(range(13, 17 + 1))),   # maig
+            [9].extend(list(range(13, 17 + 1))),   # juny
+            [9].extend(list(range(13, 17 + 1))),   # juliol
+            list(range(11, 16 + 1)),   # agost
+            list(range(12, 17 + 1)), #setembre
+            list(range(3, 4 + 1)).extend(list(range(14, 17 + 1))), # octubre
+            list(range(2, 5 + 1)).extend(list(range(14, 15 + 1))), # novembre
+            list(range(1, 5 + 1)).extend([14]) # desembre
+            ]       
+
+        self.hores_punta = [                         # llista de hores punta del preu per cada mes
+            list(range(10, 11 + 1)).extend(list(range(18, 21 + 1))), # gener
+            [10, 13].extend(list(range(18, 21 + 1))), # febrer
+            list(range(18, 23 + 1)), # març
+            [8].extend(list(range(19, 23 + 1))),    # abril
+            [7].extend(list(range(19, 23 + 1))),   # maig
+            [7].extend(list(range(19, 23 + 1))),   # juny
+            [7].extend(list(range(19, 23 + 1))),   # juliol
+            [7].extend(list(range(19, 23 + 1))),   # agost
+            [8].extend(list(range(19, 23 + 1))),   # setembre
+            [8, 10].extend(list(range(18, 21 + 1))),   # octubre
+            [8].extend(list(range(18, 22 + 1))), # novembre
+            list(range(10, 11 + 1)).extend(list(range([18, 21 + 1]))) # desembre
+            ]
+
         self.historial = []
 
     def act(self, obs: dict) -> float:
