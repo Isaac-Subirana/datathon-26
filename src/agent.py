@@ -1,7 +1,16 @@
 """
 agent.py
-Plantilla oficial de l'agent de control per al repte de la bateria de UPC Sostenible.
+Iteració sobre la plantilla oficial de l'agent de control per al repte de la bateria de UPC Sostenible.
 Datathon 2026.
+
+La idea principal del codi és aprofitar les dades d'entrenament proporcionades per trobar, per a cada mes, el preu
+mitjà, el co2 mitjà generat per les centrals i les hores vall i hores punta.
+
+Llavors, definim un llindar de preus per carregar/descarregar i un llindar de co2 generat per les centrals "tolerable".
+
+Amb aquestes dades, l'algoritme valora si aquella hora val la pena o no carregar o descarregar la bateria, i evalua com quant
+val la pena carregar/descarregar.
+
 """
 
 class BatteryAgent:
@@ -10,8 +19,11 @@ class BatteryAgent:
         S'executa una sola vegada a l'inici del període d'avaluació.
         Permet carregar models predictius o definir llindars d'operació.
         """
+
+        from math import sqrt
+
         # Paràmetres d'operació de la política de referència
-        self.preu_carrega: list[float] = [  # €/kWh
+        self.preu: list[float] = [  # €/kWh
             0.1464,
             0.1136,
             0.1425,
@@ -40,22 +52,24 @@ class BatteryAgent:
             0.10278
         ]               
 
-        self.llindar_preu_carrega: list[float] = [c / 2 for c in self.preu_carrega]
-        self.llindar_preu_descarrega: list[float] = [c * 2 for c in self.preu_carrega]
-        self.llindar_co2_xarxa: list[float] = [c - 0.05 for c in self.co2_xarxa]
+        # Els llindars de preus i co2 són força arbitraris però creiem que poden funcionar.
+        self.llindar_preu_carrega: list[float] = [c - min(self.preu) / 2 for c in self.preu]
+        self.llindar_preu_descarrega: list[float] = [c + max(self.preu) / 2 for c in self.preu]
 
-        self.potencia_nominal_kw = 500.0        # Potència màxima de l'inversor (kW)
+        self.llindar_co2_verd_xarxa: list[float] = [c - 0.01 for c in self.co2_xarxa]
+        self.llindar_co2_brut_xarxa: list[float] = [c + 0.02 for c in self.co2_xarxa]
+
 
         self.hores_vall = [                         # llista de hores vall del preu per cada mes
-            list(range(1, 6 + 1)), # gener
-            list(range(0, 2 + 1)) + list(range(4, 6 + 1)), # febrer
+            list(range(1, 6 + 1)),                           # gener
+            list(range(0, 2 + 1)) + list(range(4, 6 + 1)),   # febrer
             list(range(2, 4 + 1)) + list(range(14, 16 + 1)), # març
             [4, 9] + list(range(14, 17 + 1)),                # abril
-            [9] + list(range(13, 17 + 1)),   # maig
-            [9] + list(range(13, 17 + 1)),   # juny
-            [9] + list(range(13, 17 + 1)),   # juliol
-            list(range(11, 16 + 1)),   # agost
-            list(range(12, 17 + 1)), #setembre
+            [9] + list(range(13, 17 + 1)),                   # maig
+            [9] + list(range(13, 17 + 1)),                   # juny
+            [9] + list(range(13, 17 + 1)),                   # juliol
+            list(range(11, 16 + 1)),                         # agost
+            list(range(12, 17 + 1)),                         # setembre
             list(range(3, 4 + 1)) + list(range(14, 17 + 1)), # octubre
             list(range(2, 5 + 1)) + list(range(14, 15 + 1)), # novembre
             list(range(1, 5 + 1)) + [14] # desembre
@@ -63,24 +77,24 @@ class BatteryAgent:
 
         self.hores_punta = [                         # llista de hores punta del preu per cada mes
             list(range(10, 11 + 1)) + list(range(18, 21 + 1)), # gener
-            [10, 13] + list(range(18, 21 + 1)), # febrer
-            list(range(18, 23 + 1)), # març
-            [8] + list(range(19, 23 + 1)),    # abril
-            [7] + list(range(19, 23 + 1)),   # maig
-            [7] + list(range(19, 23 + 1)),   # juny
-            [7] + list(range(19, 23 + 1)),   # juliol
-            [7] + list(range(19, 23 + 1)),   # agost
-            [8] + list(range(19, 23 + 1)),   # setembre
-            [8, 10] + list(range(18, 21 + 1)),   # octubre
-            [8] + list(range(18, 22 + 1)), # novembre
-            [10, 11] + list(range(18, 21 + 1)) # desembre
+            [10, 13] + list(range(18, 21 + 1)),                # febrer
+            list(range(18, 23 + 1)),                           # març
+            [8] + list(range(19, 23 + 1)),                     # abril
+            [7] + list(range(19, 23 + 1)),                     # maig
+            [7] + list(range(19, 23 + 1)),                     # juny
+            [7] + list(range(19, 23 + 1)),                     # juliol
+            [7] + list(range(19, 23 + 1)),                     # agost
+            [8] + list(range(19, 23 + 1)),                     # setembre
+            [8, 10] + list(range(18, 21 + 1)),                 # octubre
+            [8] + list(range(18, 22 + 1)),                     # novembre
+            [10, 11] + list(range(18, 21 + 1))                 # desembre
             ]
 
-        #self.historial = []
+
+        self.potencia_nominal_kw = 500.0        # Potència màxima de l'inversor (kW)
+        self.rendiment = round(sqrt(0.9), 10)
 
     def act(self, obs: dict) -> float:
-        import pandas as pd
-        from math import sqrt
         """Determina la consigna de potència activa de la bateria per a l'hora actual.
 
         Paràmetres:
@@ -104,11 +118,11 @@ class BatteryAgent:
             < 0  -> Descàrrega d'energia cap al campus (fins a -500.0 kW).
             = 0  -> Bateria en mode d'espera (0.0 kW).
         """
+        
+        from pandas import to_datetime
+        
         hora = obs["hour"]
-        #mes = self.extreu_mes(obs[timestamp]) - 1 # perquè volem l'índex de la llista
-        #timestamp_en_llista = obs["timestamp"].split("-")
-        #mes = int(timestamp_en_llista[1])
-        mes = pd.to_datetime(obs["timestamp"]).month - 1
+        mes = to_datetime(obs["timestamp"]).month - 1
         preu = obs["preu_actual"]
         co2 = obs["co2_actual"]
         soc = obs["soc_pct"]
@@ -120,60 +134,26 @@ class BatteryAgent:
         
         
         # canvia la consigna segons certes condicions
-        if co2 < self.llindar_co2_xarxa[mes] or preu < self.llindar_preu_carrega[mes]:
+        if co2 < self.llindar_co2_verd_xarxa[mes] or preu < self.llindar_preu_carrega[mes] or hora in self.hores_vall[mes]:
             # si la electricitat consumida és prou verda o el preu és molt barat, carreguem la bateria
-            consigna = 300 #algo positiu (carreguem)
+            consigna = 500
 
-        elif co2 > self.llindar_co2_xarxa[mes] or preu > self.llindar_preu_descarrega[mes]: 
-            # si la electricitat consumida contamina "molt" o el preu està pels núvols descarreguem la bateria
-            consigna = -300
-        # si la electricitat consumida no és cap de les dues coses, no fem res
-            
+        elif co2 > self.llindar_co2_brut_xarxa[mes] or preu > self.llindar_preu_descarrega[mes] or hora in self.hores_punta[mes]: 
+            # si la electricitat consumida és força contaminant o el preu és molt car descarreguem la bateria
+            consigna = -500
+        
+        # Si la electricitat consumida no és cap de les dues coses, no fem res
 
-        #return assegura_resultat(consigna, soc_kwh, 2000.0, 500.0, -500.0)
 
-        #from math import sqrt
 
-        # Clamping de seguretat física per evitar infraccions de retallada (clipping): [part de l'agent original]
-        rendiment = round(sqrt(0.90), 10)
-        max_carrega = min(self.potencia_nominal_kw, (soc_kwh_max - soc_kwh) / rendiment)
-        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * rendiment)
+        # Clamping de seguretat física per evitar infraccions de retallada (clipping): 
+        # [part de la plantilla original, lleugerament modificada per el Gemma de l'Opencode]
+        max_carrega = min(self.potencia_nominal_kw, (soc_kwh_max - soc_kwh) / self.rendiment)
+        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * self.rendiment)
 
-        consigna = float(max(-max_descarrega, min(max_carrega, consigna)))
-
-        # Considerarem que el valor de sortida és 'sortida'. 
-        # Safety check: ens assegurem que no es restin punts per violació dels límits.
-        if consigna > 500:
-            return 500
-        elif consigna < -500:
-            return -500
-        else:
-            return consigna
-
-    """
-    def extreu_mes(self, timestamp: str) -> int:
-        Donada una timestamp en format YYYY-MM-DD hh:mm:ss, retorna el mes expressat per el timestamp.
-        timestamp_en_llista = timestamp.split("-")
-        return int(timestamp_en_llista[1])
-    """
-    """
-    def assegura_resultat(self, consigna: float, soc_kwh:float, soc_kwh_max: float, pot_màx: float, pot_mín: float) -> float:
-        Donada una possible operació hi opera un safety check, asegurant-se que no es restin punts per violació dels límits o clipping.
-        from math import sqrt
-
-        # Clamping de seguretat física per evitar infraccions de retallada (clipping): [part de l'agent original]
-        rendiment = round(sqrt(90), 10)
-        max_carrega = min(self.potencia_nominal_kw, (soc_kwh_max - soc_kwh) / rendiment)
-        max_descarrega = min(self.potencia_nominal_kw, soc_kwh * rendiment)
-
-        consigna = float(max(-max_descarrega, min(max_carrega, consigna)))
-
-        # Considerarem que el valor de sortida és 'sortida'. 
-        # Safety check: ens assegurem que no es restin punts per violació dels límits.
-        if consigna > pot_màx:
-            return pot_màx
-        elif consigna < pot_mín:
-            return pot_mín
-        else:
-            return consigna
-    """
+        if consigna > 0:
+            consigna = min(consigna, max_carrega)
+        elif consigna < 0:
+            consigna = max(consigna, -max_descarrega)
+        
+        return consigna

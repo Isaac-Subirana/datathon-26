@@ -1,3 +1,9 @@
+"""Com bé indica el nom de l'arxiu, aquest agent ha estat dissenyat amb l'ajuda d'Opencode 
+(fent servir l'agent Gemma, proporcionat gràcies a Helmcode); basant-nos en part en la nostra idea original
+(que podeu trobar a agent.py -l'altra solució lliurada-), que era comprar potència de la xarxa les hores on
+l'energia proveïda era més verda, més barata que un llindar, o en hores vall observades, i lliurar-ne al campus 
+en les hores on l'energia de la xarxa era més bruta, més cara que un llindar, o en hores punta observades."""
+
 import numpy as np
 from math import sqrt
 
@@ -5,17 +11,22 @@ class BatteryAgent:
     def __init__(self) -> None:
         """
         Inicialització de l'agent.
+        S'executa una sola vegada a l'inici del període d'avaluació.
+        Permet carregar models predictius o definir llindars d'operació.
         """
         self.potencia_nominal_kw = 500.0
         self.soc_kwh_max = 2000.0
         self.rendiment = sqrt(0.90)
+        
+        self.historial_soc: list[float] = []
+        self.historial_consignes: list[float] = []
 
     def act(self, obs: dict) -> float:
         """
-        Determina la consigna de potència activa de la bateria basant-se en la previsió de 24 hores.
+        Retorna la consigna de potència activa de la bateria basant-se en la previsió de 24 hores.
         
-        L'objectiu és minimitzar les emissions de CO2 (70%) i el cost (30%) utilitzant
-        una estratègia d'optimització basada en la desviació del score actual respecte
+        L'objectiu és minimitzar les emissions de CO2 (que compten un 70% cap a l'score) i el cost (que compta un 30%)
+        basant-nos en la desviació del score actual respecte
         a la mitjana de la finestra de previsió.
         """
         preu_actual = obs["preu_actual"]
@@ -23,6 +34,7 @@ class BatteryAgent:
         preus_properes_24h = obs["preus_properes_24h"]
         co2_properes_24h = obs["co2_properes_24h"]
         soc_kwh = obs["soc_kwh"]
+        self.historial_soc.append(soc_kwh)
 
         # 2. Construcció de la finestra de dades (actual + previsió de 24 hores)
         # Fem servir numpy per a càlculs vectoritzats i eficients
@@ -35,12 +47,10 @@ class BatteryAgent:
         
         def normalitza(arr):
             diff = np.max(arr) - np.min(arr)
-            if diff < 1e-9:
-                return np.zeros_like(arr)
             return (arr - np.min(arr)) / diff
 
-        norm_preus = normaltza(preus)
-        norm_co2s = normalize(co2s)
+        norm_preus = normalitza(preus)
+        norm_co2s = normalitza(co2s)
 
         # Score combinat: 70% de pes a la reducció de CO2 i 30% a la reducció de cost
         scores = 0.7 * norm_co2s + 0.3 * norm_preus
@@ -94,4 +104,5 @@ class BatteryAgent:
         elif consigna < 0:
             consigna = max(consigna, -max_p_discharge_mag)
             
+        self.historial_consignes.append(consigna)
         return float(consigna)
