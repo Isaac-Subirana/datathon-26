@@ -17,7 +17,6 @@ class BatteryAgent:
     def __init__(self) -> None:
         """Inicialització de l'agent.
         S'executa una sola vegada a l'inici del període d'avaluació.
-        Permet carregar models predictius o definir llindars d'operació.
         """
 
         from math import sqrt
