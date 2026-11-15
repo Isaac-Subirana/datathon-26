@@ -1,4 +1,3 @@
-
 # Carrega la Bateria! — Datathon UPC Sostenible
 
 ## Descripció del projecte
@@ -27,16 +26,19 @@ A partir d'aquestes dades, hem de prendre decisions horàries sobre la càrrega 
 
 ## La nostra solució
 
-Hem desenvolupat un agent que decideix com gestionar la bateria a cada pas de la simulació.
+Hem desenvolupat dos agents que decideixen com gestionar la bateria a cada pas de la simulació.
 
-L'agent rep informació sobre l'estat actual del sistema i les previsions disponibles, i retorna una acció que determina la potència de càrrega o descàrrega.
+Els agents reben informació sobre l'estat actual del sistema i les previsions disponibles, i retornen la potència de càrrega o descàrrega que s'hauria de dur a terme a la bateria.
 
-L'estratègia té en compte factors com:
+Les nostres dues estratègies tenen en compte els següents factors:
 
 - El preu actual de l'electricitat.
 - Les previsions de preus de les properes hores.
-- La intensitat de carboni de l'electricitat.
-- Les necessitats energètiques del campus.
+- La petjada de carboni de l'electricitat consumida.
+- Les previsions de petjades de carboni de l'electricitat consumida en les properes hores.
 - L'estat de càrrega de la bateria (SOC).
+- Les hores vall i punta mitjanes observades als mesos anteriors donats a la carpeta `data/train`, així com els preus i petjades de CO2 mitjanes. Podreu visualitzar dashboards gràfics que mostren les dades donades a `data/dashboard.py`, `starter_kit/co2_grafic.py` i `starter_kit/dashboard*.py`, creats mitjançant Streamlit.
+
 L'objectiu és trobar una estratègia que permeti aprofitar millor l'energia disponible i reduir l'impacte econòmic i ambiental.
 
+Podreu trobar les nostres dues solucions a `src/agent.py` i `src/agent-opencode.py`.
