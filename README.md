@@ -32,7 +32,7 @@ Les nostres dues estratègies tenen en compte els següents factors:
 - La petjada de carboni de l'electricitat consumida.
 - Les previsions de petjada de carboni de l'electricitat consumida en les properes 24 hores.
 - L'estat de càrrega de la bateria (SOC).
-- Les hores vall i punta mitjanes observades als mesos anteriors donats a la carpeta `data/train`, així com els preus i petjades de CO2 mitjanes. Podreu visualitzar dashboards gràfics que mostren les dades donades a `data/dashboard.py`, `starter_kit/co2_grafic.py` i `starter_kit/dashboard*.py`, creats mitjançant Streamlit.
+- Les hores vall i punta mitjanes observades als mesos anteriors donats a la carpeta `data/train`, així com els preus i petjades de CO<sub>2</sub> mitjanes. Podreu visualitzar dashboards gràfics que mostren les dades donades a `data/dashboard.py`, `starter_kit/co2_grafic.py` i `starter_kit/dashboard*.py`, creats mitjançant Streamlit.
 
 L'objectiu és trobar una estratègia que permeti aprofitar millor l'energia disponible i reduir l'impacte econòmic i ambiental.
 
