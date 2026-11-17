@@ -80,7 +80,8 @@ class BatteryAgent:
         score_min = np.min(scores)
         score_max = np.max(scores)
 
-        # En lloc de retornar una consigna estàtica, la multipliquem per 
+        # En lloc de retornar una consigna estàtica, la multipliquem per la puntuació 
+        # perquè s'adapti millor a la demanda futura
         consigna = 0.0
 
         if score_now < score_avg: # Si la puntuació actual és millor que la mitjana:
